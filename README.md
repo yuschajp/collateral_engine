@@ -14,7 +14,7 @@ flowchart TD
     B --> C[Margin call detection<br/><i>built</i>]
     C --> D[Cheapest-to-deliver optimization<br/><i>built</i>]
     D --> E[Liquidation engine<br/><i>built</i>]
-    E --> F[Crypto perpetual funding rate<br/><i>planned</i>]
+    E --> F[Crypto perpetual funding rate<br/><i>built</i>]
 ```
 
 ## Design decisions
@@ -25,6 +25,8 @@ The cheapest-to-deliver optimizer defaults to pledging the highest-haircut (lowe
 
 The liquidation engine deliberately inverts that priority. When a margin call goes uncured past its deadline, the collateral actually being sold gets liquidated most-liquid-first rather than least-liquid-first, since the goal under forced liquidation is minimizing execution risk and market impact, not preserving optionality. A liquidation discount is also applied on top of the normal haircut at this stage, reflecting the real fire-sale pricing impact of a forced sale, something the voluntary cheapest-to-deliver flow never has to account for. `liquidation_demo.py` walks through both a cured and an uncured scenario side by side, then shows the liquidation actually executing across multiple asset types until the shortfall is covered.
 
+The funding rate module is the crypto-specific piece, but it plugs into the same margin logic rather than sitting off to the side: a perpetual future has no expiry, so its price gets anchored to an underlying index through periodic funding payments instead, and `funding_demo.py` shows that those payments are not a side detail, they directly erode account equity the same way any other loss does. The demo runs nine consecutive funding intervals on a position with a persistent premium, watches equity decay payment by payment, and then runs the exact same `margin_call()` function from `collateral_engine.py` against the eroded balance, showing that sustained funding cost alone is enough to trigger a real margin call, the same mechanism a forced liquidation downstream of that call would use.
+
 ## Getting started
 
 Requires Python 3 only — no external dependencies.
@@ -34,6 +36,7 @@ git clone <your-repo-url>
 cd collateral-margin-engine
 python3 demo.py
 python3 liquidation_demo.py
+python3 funding_demo.py
 ```
 
 Expected output from `demo.py`:
@@ -78,16 +81,46 @@ Triggering liquidation, most liquid assets first:
   Fully covered: True
 ```
 
+Expected output from `funding_demo.py`:
+
+```
+Mark price: $65,200.00   Index price: $65,000.00
+Premium rate: 0.3077%
+Funding rate (this interval): 0.2577%
+
+Long position notional: $500,000.00
+Funding payment this interval: $-1,288.46 (pays)
+
+Cumulative funding over 9 intervals (3 days at 8h funding) with a persistent premium:
+  Interval 1: equity = $48,711.54
+  Interval 2: equity = $47,423.08
+  Interval 3: equity = $46,134.62
+  Interval 4: equity = $44,846.15
+  Interval 5: equity = $43,557.69
+  Interval 6: equity = $42,269.23
+  Interval 7: equity = $40,980.77
+  Interval 8: equity = $39,692.31
+  Interval 9: equity = $38,403.85
+
+Checking whether accumulated funding alone has triggered a margin call:
+  Maintenance margin required: $40,000.00
+  Current equity (haircut-adjusted): $38,403.85
+  Shortfall: $1,596.15
+  Margin call triggered: True
+```
+
 ## Project structure
 
 ```
 collateral_engine.py     # haircut valuation, margin call detection, cheapest-to-deliver optimization
 liquidation_engine.py      # cure-deadline checking and forced liquidation, most-liquid-first
-demo.py                     # end-to-end margin call and optimization example
-liquidation_demo.py            # end-to-end cure-deadline and liquidation example
+funding_engine.py            # perpetual futures premium and funding rate, funding cash flows
+demo.py                        # end-to-end margin call and optimization example
+liquidation_demo.py               # end-to-end cure-deadline and liquidation example
+funding_demo.py                      # end-to-end funding accrual example tied into the margin call check
 README.md
 ```
 
-## Roadmap
+## Status
 
-- Crypto perpetual futures funding rate mechanics, extending the same haircut/margin framework to a mark-price-vs-index-price context
+All planned pieces are built: haircut valuation, margin call detection, cheapest-to-deliver optimization, forced liquidation, and crypto perpetual funding rate mechanics. The funding module deliberately reuses `margin_call()` rather than duplicating the logic, since funding payments and collateral shortfalls are really the same risk surfacing from two different sources.
