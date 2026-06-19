@@ -13,7 +13,7 @@ flowchart TD
     A[Collateral pool & exposure<br/><i>built</i>] --> B[Haircut-adjusted valuation<br/><i>built</i>]
     B --> C[Margin call detection<br/><i>built</i>]
     C --> D[Cheapest-to-deliver optimization<br/><i>built</i>]
-    D --> E[Liquidation engine<br/><i>planned</i>]
+    D --> E[Liquidation engine<br/><i>built</i>]
     E --> F[Crypto perpetual funding rate<br/><i>planned</i>]
 ```
 
@@ -23,6 +23,8 @@ Collateral value is always reported two ways: market value and haircut-adjusted 
 
 The cheapest-to-deliver optimizer defaults to pledging the highest-haircut (lowest quality) eligible collateral first. That's deliberate: it mirrors the actual treasury incentive, which is to preserve cash and high-quality liquid assets for other uses (funding, other margin calls, regulatory liquidity buffers) rather than tying them up unnecessarily when lower-grade eligible collateral would satisfy the same requirement. The `demo.py` scenario shows this directly: given a choice between cash, government bonds, corporate bonds, and equities, the optimizer reaches for equity and corporate bonds first and leaves the cash untouched, even though cash would have been the simplest thing to post.
 
+The liquidation engine deliberately inverts that priority. When a margin call goes uncured past its deadline, the collateral actually being sold gets liquidated most-liquid-first rather than least-liquid-first, since the goal under forced liquidation is minimizing execution risk and market impact, not preserving optionality. A liquidation discount is also applied on top of the normal haircut at this stage, reflecting the real fire-sale pricing impact of a forced sale, something the voluntary cheapest-to-deliver flow never has to account for. `liquidation_demo.py` walks through both a cured and an uncured scenario side by side, then shows the liquidation actually executing across multiple asset types until the shortfall is covered.
+
 ## Getting started
 
 Requires Python 3 only — no external dependencies.
@@ -31,9 +33,10 @@ Requires Python 3 only — no external dependencies.
 git clone <your-repo-url>
 cd collateral-margin-engine
 python3 demo.py
+python3 liquidation_demo.py
 ```
 
-Expected output:
+Expected output from `demo.py`:
 
 ```
 Margin call check on currently pledged collateral:
@@ -51,15 +54,40 @@ Cheapest-to-deliver optimization to cover the full requirement:
   Cash preserved (not pledged): ['C1']
 ```
 
+Expected output from `liquidation_demo.py`:
+
+```
+Margin call shortfall: $900,000.00
+
+Scenario A -- additional collateral posted in time:
+  Remaining shortfall: $0.00
+  Cured: True
+  Liquidation required: False
+
+Scenario B -- deadline missed, nothing posted in time:
+  Remaining shortfall: $900,000.00
+  Cured: False
+  Liquidation required: True
+
+Triggering liquidation, most liquid assets first:
+  Liquidate C1 (cash): haircut value $300,000.00, liquidation discount 0%, net proceeds $300,000.00
+  Liquidate C2 (govt_bond): haircut value $490,000.00, liquidation discount 1%, net proceeds $485,100.00
+  Liquidate C3 (corp_bond): haircut value $368,000.00, liquidation discount 4%, net proceeds $353,280.00
+  Total proceeds: $1,138,380.00
+  Residual shortfall: $0.00
+  Fully covered: True
+```
+
 ## Project structure
 
 ```
-collateral_engine.py    # haircut valuation, margin call detection, cheapest-to-deliver optimization
-demo.py                   # end-to-end example
+collateral_engine.py     # haircut valuation, margin call detection, cheapest-to-deliver optimization
+liquidation_engine.py      # cure-deadline checking and forced liquidation, most-liquid-first
+demo.py                     # end-to-end margin call and optimization example
+liquidation_demo.py            # end-to-end cure-deadline and liquidation example
 README.md
 ```
 
 ## Roadmap
 
-- Liquidation engine: trigger logic for when a margin call goes uncured within a deadline
 - Crypto perpetual futures funding rate mechanics, extending the same haircut/margin framework to a mark-price-vs-index-price context
