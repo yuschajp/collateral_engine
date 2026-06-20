@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Collateral & Margin Engine Dashboard</title>
+<style>
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: #f5f6f8; color: #1a1a1a; margin: 0; padding: 32px; }
+  h1 { color: #1B3A5C; margin-bottom: 4px; }
+  .subtitle { color: #5a5a5a; margin-bottom: 28px; }
+  .card { background: #ffffff; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .card h2 { color: #1B3A5C; font-size: 16px; margin-top: 0; border-bottom: 1px solid #e2e2e2; padding-bottom: 8px; }
+  .figure-row { }
+  .figure-block { display: inline-block; margin-right: 48px; vertical-align: top; }
+  .figure { font-size: 24px; font-weight: 600; color: #1B3A5C; }
+  .figure-warn { color: #b3401f; }
+  .figure-label { font-size: 12px; color: #5a5a5a; margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; background: #1B3A5C; color: #fff; padding: 8px 10px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #ececec; }
+  tr:nth-child(even) td { background: #fafafa; }
+</style>
+</head>
+<body>
+  <h1>Collateral & Margin Engine</h1>
+  <div class="subtitle">Margin calls, collateral optimization, liquidation, and crypto funding</div>
+
+  <div class="card">
+    <h2>Margin call check</h2>
+    <div class="figure-row">
+      <div class="figure-block">
+        <div class="figure-label">Required margin</div>
+        <div class="figure">$1,000,000.00</div>
+      </div>
+      <div class="figure-block">
+        <div class="figure-label">Pledged (haircut-adjusted)</div>
+        <div class="figure">$790,000.00</div>
+      </div>
+      <div class="figure-block">
+        <div class="figure-label">Shortfall</div>
+        <div class="figure figure-warn">$210,000.00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Cheapest-to-deliver optimization</h2>
+    <table><thead><tr><th>Asset</th><th>Type</th><th>Market value</th><th>Haircut</th><th>Counts as</th></tr></thead><tbody><tr><td>C4</td><td>equity</td><td>$300,000.00</td><td>15%</td><td>$255,000.00</td></tr><tr><td>C3</td><td>corp_bond</td><td>$400,000.00</td><td>8%</td><td>$368,000.00</td></tr><tr><td>C2</td><td>govt_bond</td><td>$500,000.00</td><td>2%</td><td>$490,000.00</td></tr></tbody></table>
+    <div class="figure-row" style="margin-top: 16px;">
+      <div class="figure-block">
+        <div class="figure-label">Total posted (haircut-adjusted)</div>
+        <div class="figure">$1,113,000.00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Forced liquidation ($900,000 shortfall, deadline missed)</h2>
+    <table><thead><tr><th>Asset</th><th>Type</th><th>Haircut value</th><th>Liquidation discount</th><th>Net proceeds</th></tr></thead><tbody><tr><td>C1</td><td>cash</td><td>$300,000.00</td><td>0%</td><td>$300,000.00</td></tr><tr><td>C2</td><td>govt_bond</td><td>$490,000.00</td><td>1%</td><td>$485,100.00</td></tr><tr><td>C3</td><td>corp_bond</td><td>$368,000.00</td><td>4%</td><td>$353,280.00</td></tr></tbody></table>
+    <div class="figure-row" style="margin-top: 16px;">
+      <div class="figure-block">
+        <div class="figure-label">Total proceeds</div>
+        <div class="figure">$1,138,380.00</div>
+      </div>
+      <div class="figure-block">
+        <div class="figure-label">Fully covered</div>
+        <div class="figure">True</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Crypto perpetual funding accrual</h2>
+    <div class="subtitle" style="margin-bottom: 12px;">$500,000 long position, funding rate 0.2577% per 8h interval</div>
+    <table><thead><tr><th>Interval</th><th>Funding payment</th><th>Equity after</th></tr></thead><tbody><tr><td>1</td><td>$-1,288.46</td><td>$48,711.54</td></tr><tr><td>2</td><td>$-1,288.46</td><td>$47,423.08</td></tr><tr><td>3</td><td>$-1,288.46</td><td>$46,134.62</td></tr><tr><td>4</td><td>$-1,288.46</td><td>$44,846.15</td></tr><tr><td>5</td><td>$-1,288.46</td><td>$43,557.69</td></tr><tr><td>6</td><td>$-1,288.46</td><td>$42,269.23</td></tr><tr><td>7</td><td>$-1,288.46</td><td>$40,980.77</td></tr><tr><td>8</td><td>$-1,288.46</td><td>$39,692.31</td></tr><tr><td>9</td><td>$-1,288.46</td><td>$38,403.85</td></tr></tbody></table>
+    <div class="figure-row" style="margin-top: 16px;">
+      <div class="figure-block">
+        <div class="figure-label">Maintenance margin</div>
+        <div class="figure">$40,000.00</div>
+      </div>
+      <div class="figure-block">
+        <div class="figure-label">Shortfall after funding</div>
+        <div class="figure figure-warn">$1,596.15</div>
+      </div>
+      <div class="figure-block">
+        <div class="figure-label">Margin call triggered</div>
+        <div class="figure">True</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

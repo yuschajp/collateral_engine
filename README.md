@@ -15,6 +15,7 @@ flowchart TD
     C --> D[Cheapest-to-deliver optimization<br/><i>built</i>]
     D --> E[Liquidation engine<br/><i>built</i>]
     E --> F[Crypto perpetual funding rate<br/><i>built</i>]
+    F --> G[HTML dashboard<br/><i>built</i>]
 ```
 
 ## Design decisions
@@ -27,6 +28,10 @@ The liquidation engine deliberately inverts that priority. When a margin call go
 
 The funding rate module is the crypto-specific piece, but it plugs into the same margin logic rather than sitting off to the side: a perpetual future has no expiry, so its price gets anchored to an underlying index through periodic funding payments instead, and `funding_demo.py` shows that those payments are not a side detail, they directly erode account equity the same way any other loss does. The demo runs nine consecutive funding intervals on a position with a persistent premium, watches equity decay payment by payment, and then runs the exact same `margin_call()` function from `collateral_engine.py` against the eroded balance, showing that sustained funding cost alone is enough to trigger a real margin call, the same mechanism a forced liquidation downstream of that call would use.
 
+`lifecycle_demo.py` ties all three modules into a single narrative rather than three separate demos: a position gets booked and margined through cheapest-to-deliver, funding accrual over nine intervals erodes its equity into a real margin call, and the call then plays out both ways, cured using the cash that was deliberately held back in step one, and separately, liquidated by force-selling a single bond out of what was already pledged. It's meant to be the one script that actually reads like what happened to a position, rather than a tour of isolated functions.
+
+`dashboard.py` renders a margin call, the cheapest-to-deliver selection, a forced liquidation, and crypto funding accrual into a single static HTML page, the same way the ledger engine's dashboard does, so the numbers can be reviewed visually rather than read off the console.
+
 ## Getting started
 
 Requires Python 3 only — no external dependencies.
@@ -34,9 +39,62 @@ Requires Python 3 only — no external dependencies.
 ```bash
 git clone <your-repo-url>
 cd collateral-margin-engine
+python3 lifecycle_demo.py
 python3 demo.py
 python3 liquidation_demo.py
 python3 funding_demo.py
+python3 dashboard.py    # then open dashboard.html in a browser
+```
+
+`lifecycle_demo.py` is the best starting point — it walks through the full story end to end. The other three demos isolate each piece individually, and `dashboard.py` renders all of it as a single visual report.
+
+Expected output from `lifecycle_demo.py`:
+
+```
+======================================================================
+1. Trade booked: $2,000,000 notional long BTC perpetual
+======================================================================
+Initial margin requirement: $200,000.00
+
+  Post C4 (equity): $70,000.00 market value, counts as $59,500.00
+  Post C3 (corp_bond): $100,000.00 market value, counts as $92,000.00
+  Post C2 (govt_bond): $150,000.00 market value, counts as $147,000.00
+  Total posted (haircut-adjusted): $298,500.00
+  Cash preserved for other uses: ['C1']
+
+======================================================================
+2. Funding accrues over several days -- the perpetual trades persistently rich to the index
+======================================================================
+Mark price: $65,300.00   Index price: $65,000.00
+Funding rate per 8h interval: 0.4115%
+
+  Interval 1: funding payment $-8,230.77   equity now $290,269.23
+  ...
+  Interval 9: funding payment $-8,230.77   equity now $224,423.08
+
+======================================================================
+3. Maintenance margin check
+======================================================================
+Maintenance margin required: $280,000.00
+Current equity: $224,423.08
+Shortfall: $55,576.92
+Margin call triggered: True
+
+======================================================================
+4a. Outcome A -- additional collateral posted within the deadline
+======================================================================
+  Post additional C1 (cash): counts as $80,000.00
+  Remaining shortfall: $0.00
+  Cured: True
+  (The cash held back in step 1 is exactly what gets tapped here.)
+
+======================================================================
+4b. Outcome B -- deadline missed, forced liquidation triggered instead
+======================================================================
+  Liquidate C2 (govt_bond): net proceeds $145,530.00 (liquidation discount 1%)
+  Total proceeds: $145,530.00
+  Residual shortfall: $0.00
+  Fully covered: True
 ```
 
 Expected output from `demo.py`:
@@ -115,12 +173,14 @@ Checking whether accumulated funding alone has triggered a margin call:
 collateral_engine.py     # haircut valuation, margin call detection, cheapest-to-deliver optimization
 liquidation_engine.py      # cure-deadline checking and forced liquidation, most-liquid-first
 funding_engine.py            # perpetual futures premium and funding rate, funding cash flows
-demo.py                        # end-to-end margin call and optimization example
-liquidation_demo.py               # end-to-end cure-deadline and liquidation example
-funding_demo.py                      # end-to-end funding accrual example tied into the margin call check
+lifecycle_demo.py               # combined end-to-end story: one position, all three modules
+dashboard.py                       # static HTML report combining all three modules into one view
+demo.py                               # standalone margin call and optimization example
+liquidation_demo.py                      # standalone cure-deadline and liquidation example
+funding_demo.py                             # standalone funding accrual example
 README.md
 ```
 
 ## Status
 
-All planned pieces are built: haircut valuation, margin call detection, cheapest-to-deliver optimization, forced liquidation, and crypto perpetual funding rate mechanics. The funding module deliberately reuses `margin_call()` rather than duplicating the logic, since funding payments and collateral shortfalls are really the same risk surfacing from two different sources.
+All planned pieces are built: haircut valuation, margin call detection, cheapest-to-deliver optimization, forced liquidation, crypto perpetual funding rate mechanics, a combined end-to-end lifecycle narrative, and an HTML dashboard. The funding module deliberately reuses `margin_call()` rather than duplicating the logic, since funding payments and collateral shortfalls are really the same risk surfacing from two different sources.
